@@ -6,15 +6,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import pandas as pd
-import argparse
-
-# add parser
-parser = argparse.ArgumentParser()
-parser.add_argument('--device', type=int, default=0)
-parser.add_argument('--lr', type=float, default=0.75)
-parser.add_argument('--batch_size', type=int, default=32)
-parser.add_argument('--num_epochs', type=int, default=1000)
-args = parser.parse_args()
 
 
 def loss_function(y_true,y_est):
@@ -43,7 +34,7 @@ class logistic_regression():
         optimizer = tf.optimizers.SGD(learning_rate=lr)
         num_batches = len(X_train) // batch_size
         # use gpu if available
-        with tf.device('/GPU:0') if args.device == 0 else tf.device('/CPU:0'):
+        with tf.device('/GPU:0'):
             for epoch in tqdm(range(num_epochs)):
                 for batch in range(num_batches):
                     start_idx = batch * batch_size
@@ -65,9 +56,7 @@ def standardize(X):
     return (X-mean)/std
 
 
-
-
-if __name__ == "__main__":
+def train(lr,batch_size,num_epochs,plot=False):
     # read datapoints from csv file
     hw_scores = pd.read_csv(os.path.join('hw1_dataset','Problem 2','Averaged homework scores.csv'))
     final_scores = pd.read_csv(os.path.join('hw1_dataset','Problem 2','Final exam scores.csv'))
@@ -83,23 +72,36 @@ if __name__ == "__main__":
     X_test = test_data[:,:2]
     Y_test = test_data[:,2]
     model = logistic_regression()
-    model.train(X_train, Y_train, args.lr, args.batch_size, args.num_epochs)
-    # plot the prediction
-    plt.scatter(X_test[:,0],X_test[:,1],c=Y_test)
+    model.train(X_train, Y_train, lr, batch_size, num_epochs)
     # calculate the loss on test_set
     y_est = model(X_test)
     loss = loss_function(Y_test,y_est)
     print('loss on test set: ', tf.reduce_mean(loss).numpy())
-    # plot the decision boundary
-    x1 = np.linspace(-2,2,100)
-    x2 = np.linspace(-2,2,100)
-    x1,x2 = np.meshgrid(x1,x2)
-    x1 = x1.reshape(-1,1)
-    x2 = x2.reshape(-1,1)
-    X = np.concatenate((x1,x2),axis=1)
-    y = model(X).numpy().reshape(100,100)
-    plt.contour(np.linspace(-2,2,100),np.linspace(-2,2,100),y,levels=[0.5])
-    plt.xlabel('Homework score')
-    plt.ylabel('Final score')
-    plt.legend()
-    plt.savefig('problem2.png')
+    if plot:
+        # plot the prediction
+        plt.scatter(X_test[:,0],X_test[:,1],c=Y_test)
+        # plot the decision boundary
+        x1 = np.linspace(-2,2,100)
+        x2 = np.linspace(-2,2,100)
+        x1,x2 = np.meshgrid(x1,x2)
+        x1 = x1.reshape(-1,1)
+        x2 = x2.reshape(-1,1)
+        X = np.concatenate((x1,x2),axis=1)
+        y = model(X).numpy().reshape(100,100)
+        plt.contour(np.linspace(-2,2,100),np.linspace(-2,2,100),y,levels=[0.5])
+        plt.xlabel('Homework score')
+        plt.ylabel('Final score')
+        plt.legend()
+        plt.savefig('problem2.png')
+    return tf.reduce_mean(loss).numpy()
+
+if __name__ == "__main__":
+    lr_list = np.linspace(1,10,100)
+    loss_list = []
+    for l in lr_list:
+        loss_list.append(train(l,64,100))
+    plt.plot(lr_list,loss_list)
+    plt.xlabel('learning rate')
+    plt.ylabel('loss')
+    plt.savefig('problem2_loss-lr.png')
+   
