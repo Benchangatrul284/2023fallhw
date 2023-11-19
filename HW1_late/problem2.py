@@ -101,12 +101,12 @@ class Network:
             # iterate over batches
             for start in (range(0, samples, batch_size)):
                 end = min(start + batch_size, samples)
-                batch_x = x_train[start:end]
-                batch_y = y_train[start:end]
-
+                batch_x = x_train[start:end,:]
+                batch_y = y_train[start:end,:]
                 for j in range(len(batch_x)):
                     # forward propagation
-                    output = batch_x[j]
+                    output = batch_x[j].reshape(1,-1)
+                    # breakpoint() 
                     for layer in self.layers:
                         output = layer.forward_propagation(output)
 
@@ -145,33 +145,51 @@ def ReLU(x):
 def ReLU_prime(x):
     return np.where(x>0,1,0)
 
+def standardize(X):
+    mean = np.mean(X,axis=0)
+    std = np.std(X,axis=0)
+    return (X-mean)/std
+
+
 if __name__ == '__main__':
-    # read datapoints from csv file
-    hw_scores = pd.read_csv(os.path.join('hw1_dataset','Problem 1','Averaged homework scores.csv'))
-    final_scores = pd.read_csv(os.path.join('hw1_dataset','Problem 1','Final exam scores.csv'))
-    X = np.array(hw_scores.values)
-    Y = np.array(final_scores.values)
-    data = np.concatenate((X,Y),axis=1)
+   # read datapoints from csv file
+    hw_scores = pd.read_csv(os.path.join('hw1_dataset','Problem 2','Averaged homework scores.csv'))
+    final_scores = pd.read_csv(os.path.join('hw1_dataset','Problem 2','Final exam scores.csv'))
+    results = pd.read_csv(os.path.join('hw1_dataset','Problem 2','Results.csv'))
+    X = standardize(np.array(hw_scores))
+    Y = standardize(np.array(final_scores))
+    Z = np.array(results)
+    data = np.concatenate((X,Y,Z),axis=1)
     train_data = data[:400,:]
     test_data = data[400:,:]
-    X_train = train_data[:,0].reshape(-1, 1)
-    Y_train = train_data[:,1].reshape(-1, 1)
-    X_test = test_data[:,0].reshape(-1, 1)
-    Y_test = test_data[:,1].reshape(-1, 1)
-    
+    X_train = train_data[:,:2].reshape(-1, 2)
+    Y_train = train_data[:,2].reshape(-1, 1)
+    X_test = test_data[:,:2].reshape(-1, 2)
+    Y_test = test_data[:,2].reshape(-1, 1)
+    # breakpoint()
     # create network
-    net = Network([Linear(1, 2),Linear(2, 1)])
+    net = Network([Linear(2, 6),ActivationLayer(sigmoid, sigmoid_prime),Linear(6,1),ActivationLayer(sigmoid, sigmoid_prime)])
 
     # train
     net.use(mse, mse_prime)
-    net.fit(X_train, Y_train, epochs=100, learning_rate=1e-5,batch_size=50)
+    net.fit(X_train, Y_train, epochs=100, learning_rate=1,batch_size=50)
 
-    # test
-    out = net.predict(X_test)
+    # plot the prediction
+    plt.scatter(X_test[:,0],X_test[:,1],c=Y_test)
     # calculate the loss on test_set
+    out = net.predict(X_test)
     loss = mse(Y_test,out)
     print('loss on test set: ', loss)
-    plt.scatter(X_test, Y_test,color='blue',label='test')
-    plt.plot(X_train, net.predict(X_train).reshape(-1,1), color='red',label= 'linear regression')
+    # plot the decision boundary
+    x1 = np.linspace(-2,2,100)
+    x2 = np.linspace(-2,2,100)
+    x1,x2 = np.meshgrid(x1,x2)
+    x1 = x1.reshape(-1,1)
+    x2 = x2.reshape(-1,1)
+    X = np.concatenate((x1,x2),axis=1)
+    y = net.predict(X).reshape(100,100)
+    plt.contour(np.linspace(-2,2,100),np.linspace(-2,2,100),y,levels=[0.5])
+    plt.xlabel('Homework score')
+    plt.ylabel('Final score')
     plt.legend()
-    plt.savefig('problem1.png')
+    plt.savefig('problem2.png')
