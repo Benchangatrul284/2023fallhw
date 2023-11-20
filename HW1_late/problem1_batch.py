@@ -35,7 +35,9 @@ class Linear(Layer):
         input_error = np.dot(output_error, self.weights.T)
         weights_error = np.dot(self.input.T, output_error)
         # dBias = output_error
-
+        weights_error = np.mean(weights_error,axis=0)
+        output_error = np.mean(output_error,axis=0)
+        # breakpoint()
         # update parameters
         self.weights -= learning_rate * weights_error
         self.bias -= learning_rate * output_error
@@ -90,28 +92,40 @@ class Network:
         return np.array(result)
 
     # train the network
-    def fit(self, x_train, y_train, epochs, learning_rate):
+    def fit(self, x_train, y_train, epochs, learning_rate, batch_size):
         # sample dimension first
         samples = len(x_train)
 
+        # calculate the number of batches
+        num_batches = samples // batch_size
+
         # training loop
-        for i in (range(epochs)):
-            # apply SGD
+        for i in range(epochs):
+            # apply mini-batch gradient descent
             err = 0
-            for sample in range(samples):
-                x = x_train[sample].reshape(1,-1)
-                y = y_train[sample].reshape(1,-1)
-                # breakpoint()
+            for j in range(num_batches):
+                # get the batch
+                x_batch = x_train[j*batch_size:(j+1)*batch_size]
+                y_batch = y_train[j*batch_size:(j+1)*batch_size]
+
                 # forward propagation
                 for layer in self.layers:
-                    x = layer.forward_propagation(x)
-                y_pred = x
-                err = self.loss(y, y_pred)
-                error = self.loss_prime(y, y_pred)
+                    x_batch = layer.forward_propagation(x_batch)
+                y_pred = x_batch
+
+                # calculate error
+                err += self.loss(y_batch, y_pred)
+                
+                # backpropagation
+                error = self.loss_prime(y_batch, y_pred)
                 for layer in reversed(self.layers):
                     error = layer.backward_propagation(error, learning_rate)
-            print('epoch %d/%d   error=%f' % (i+1, epochs, err))
-            errs.append(err)
+
+            # print error for each epoch
+            errs.append(err/num_batches)
+            print('epoch %d/%d   error=%f' % (i+1, epochs, err/num_batches))
+
+
 
 def mse(y_true, y_pred):
     return np.mean(np.power(y_true-y_pred, 2))
@@ -127,6 +141,7 @@ def plot_loss_curve():
     plt.title('Loss vs. No. of epochs')
     plt.legend()
     plt.savefig('loss_curve.png')
+
 
 
 if __name__ == '__main__':
@@ -149,7 +164,7 @@ if __name__ == '__main__':
 
     # train
     net.use(mse, mse_prime)
-    net.fit(X_train, Y_train, epochs=1000, learning_rate=1e-5)
+    net.fit(X_train, Y_train, epochs=1000, learning_rate=1e-5,batch_size=50)
 
     # test
     out = net.predict(X_test)
