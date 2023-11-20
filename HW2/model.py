@@ -38,7 +38,6 @@ class CIFAR(nn.Module):
         )
         # in[N, 64] => out[N, 10]
         self.out = nn.Linear(64, self.num_classes)
-        self.activation = nn.Softmax(dim=1)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -47,7 +46,7 @@ class CIFAR(nn.Module):
         x = self.fc1(x)
         x = self.fc2(x)
         output = self.out(x)
-        return self.activation(output)
+        return output
     
 
 if __name__ == '__main__':

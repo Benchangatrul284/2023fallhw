@@ -31,6 +31,11 @@ def adjust_learning_rate(epoch, T_max=args.epoch, eta_min=args.lr*0.5, lr_init=a
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
+def convert_to_one_hot_labels(target, num_classes):
+    tmp = torch.unsqueeze(target, 1)
+    target = torch.zeros(target.size(0), num_classes).scatter_(1, tmp, 1.)
+    return target
+
 def train():
     history = []
     train_loss = 0
@@ -114,6 +119,10 @@ def train():
         plot_accuracy_curve(history)
         plot_lr_curve(history)
 
+def one_hot_encode(target):
+    num_classes = 10  # replace with the number of classes in your problem
+    return torch.nn.functional.one_hot(torch.tensor(target), num_classes=num_classes)
+
 
 if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -127,7 +136,8 @@ if __name__ == '__main__':
         root='./cifar10',
         train=True,
         transform=transform,
-        download=True
+        download=True,
+        target_transform=one_hot_encode
     )
     test_data = torchvision.datasets.CIFAR10(
         root='./cifar10',
@@ -144,8 +154,10 @@ if __name__ == '__main__':
     # model
     model = CIFAR(num_classes=10).to(device)
     # loss function
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.MultiLabelSoftMarginLoss()
     # optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr,weight_decay=args.weight_decay)
     train()
+    # for (img,label) in (train_dl):
+    #     print(label)
     
