@@ -32,10 +32,13 @@ class Linear(Layer):
 
     # computes dE/dW, dE/dB for a given output_error=dE/dY. Returns input_error=dE/dX.
     def backward_propagation(self, output_error, learning_rate):
+
         input_error = np.dot(output_error, self.weights.T)
         weights_error = np.dot(self.input.T, output_error)
         # dBias = output_error
-
+        weights_error = np.mean(weights_error,axis=0)
+        output_error = np.mean(output_error,axis=0)
+        # breakpoint()
         # update parameters
         self.weights -= learning_rate * weights_error
         self.bias -= learning_rate * output_error
@@ -89,30 +92,45 @@ class Network:
 
         return np.array(result)
 
-    # train the network
-    def fit(self, x_train, y_train, epochs, learning_rate):
+     # train the network
+    def fit(self, x_train, y_train, epochs, learning_rate, batch_size):
         # sample dimension first
         samples = len(x_train)
-        
-       # training loop
-        for i in (range(epochs)):
-            # apply SGD
+
+        # calculate the number of batches
+        num_batches = samples // batch_size
+
+        # training loop
+        for i in range(epochs):
+            # apply mini-batch gradient descent
             err = 0
-            perm = np.random.permutation(samples)
-            for idx in perm:
-                x = x_train[idx].reshape(1,-1)
-                y = y_train[idx].reshape(1,-1)
-                # breakpoint()
+            for j in range(num_batches):
+                # get the batch
+                x_batch = x_train[j*batch_size:(j+1)*batch_size]
+                y_batch = y_train[j*batch_size:(j+1)*batch_size]
+
                 # forward propagation
                 for layer in self.layers:
-                    x = layer.forward_propagation(x)
-                y_pred = x
-                err = self.loss(y, y_pred)
-                error = self.loss_prime(y, y_pred)
+                    x_batch = layer.forward_propagation(x_batch)
+                y_pred = x_batch
+
+                # calculate error
+                err += self.loss(y_batch, y_pred)
+                
+                # backpropagation
+                error = self.loss_prime(y_batch, y_pred)
                 for layer in reversed(self.layers):
                     error = layer.backward_propagation(error, learning_rate)
-            print('epoch %d/%d   error=%f' % (i+1, epochs, err))
-            # errs.append(err)
+
+            # print error for each epoch
+            # errs.append(err/num_batches)
+            print('epoch %d/%d   error=%f' % (i+1, epochs, err/num_batches))
+
+def sigmoid(x):
+    return 1/(1+np.exp(-x))
+
+def sigmoid_prime(x):
+    return sigmoid(x)*(1-sigmoid(x))
 
 def logistic(y_true, y_pred):
     epsilon = 1e-7
@@ -121,15 +139,6 @@ def logistic(y_true, y_pred):
 def logistic_prime(y_true, y_pred):
     epsilon = 1e-7
     return -y_true/(y_pred + epsilon) + (1-y_true)/(1-y_pred + epsilon)
-
-def sigmoid(x):
-    return 1/(1+np.exp(-x))
-
-def sigmoid_prime(x):
-    return sigmoid(x)*(1-sigmoid(x))
-
-
-
 
 def standardize(X):
     mean = np.mean(X,axis=0)
@@ -158,7 +167,7 @@ if __name__ == '__main__':
 
     # train
     net.use(logistic, logistic_prime)
-    net.fit(X_train, Y_train, epochs=1000, learning_rate=0.75)
+    net.fit(X_train, Y_train, epochs=1000, learning_rate=0.75,batch_size = 50)
 
     # plot the prediction
     plt.scatter(X_test[:,0],X_test[:,1],c=Y_test)
