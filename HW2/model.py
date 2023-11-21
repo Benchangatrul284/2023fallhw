@@ -12,24 +12,57 @@ class CIFAR(nn.Module):
         self.activation = nn.Softmax(dim = 1)
 
         self.conv1 = nn.Sequential(
-            nn.Conv2d(3, 8, 5, 1, 2),
+            nn.Conv2d(3, 64, 5, 1, 2),
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+        )
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(64,256, 5, 1, 2),
+            nn.Dropout(p = 0.5),
+            nn.BatchNorm2d(256),
+            nn.ReLU(True),
+        )
+        self.conv3 = nn.Sequential(
+            nn.Conv2d(256,64, 5, 1, 2),
+            nn.Dropout(p = 0.5),
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+        )
+        self.conv4 = nn.Sequential(
+            nn.Conv2d(64,16, 5, 1, 2),
+            nn.Dropout(p = 0.5),
+            nn.BatchNorm2d(16),
+            nn.ReLU(True),
+            nn.MaxPool2d(kernel_size=2)
+        )
+        self.conv5 = nn.Sequential(
+            nn.Conv2d(16,8, 5, 1, 2),
+            nn.Dropout(p = 0.5),
             nn.BatchNorm2d(8),
             nn.ReLU(True),
             nn.MaxPool2d(kernel_size=2)
         )
-        self.conv2 = nn.Sequential(
-            nn.Conv2d(8, 4, 5, 1, 2),
-            nn.BatchNorm2d(4),
-            nn.ReLU(True),
-            nn.MaxPool2d(2)
+        self.linear1 = nn.Sequential(
+            nn.Linear(512, 256),
+            nn.Dropout(p = 0.5),
+            nn.ReLU(True)
         )
-        
-        self.out = nn.Linear(256, self.num_classes)
+        self.linear2 = nn.Sequential(
+            nn.Linear(256, 64),
+            nn.Dropout(p = 0.5),
+            nn.ReLU(True)
+        )
+        self.out = nn.Linear(64, self.num_classes)
 
     def forward(self, x):
         x = self.conv1(x)
         x = self.conv2(x)
+        x = self.conv3(x)
+        x = self.conv4(x)
+        x = self.conv5(x)
         x = x.view(x.size(0), -1)
+        x = self.linear1(x)
+        x = self.linear2(x)
         output = self.out(x)
         return self.activation(output)
     

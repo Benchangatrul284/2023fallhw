@@ -32,11 +32,6 @@ def adjust_learning_rate(epoch, T_max=args.epoch, eta_min=args.lr*0.5, lr_init=a
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
-def convert_to_one_hot_labels(target, num_classes):
-    tmp = torch.unsqueeze(target, 1)
-    target = torch.zeros(target.size(0), num_classes).scatter_(1, tmp, 1.)
-    return target
-
 def train():
     history = []
     train_loss = 0
