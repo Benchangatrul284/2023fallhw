@@ -128,8 +128,7 @@ def one_hot_encode(target):
 if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     transform = transforms.Compose([    
-                                transforms.RandomHorizontalFlip(),
-                                transforms.Resize((64,64)),
+                                transforms.Resize((32,32)),
                                 transforms.ToTensor(),
                             ])
     
@@ -159,6 +158,4 @@ if __name__ == '__main__':
     # optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr,weight_decay=args.weight_decay)
     train()
-    # for (img,label) in (train_dl):
-    #     print(label)
     
