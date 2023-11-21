@@ -13,6 +13,7 @@ from tqdm import tqdm
 
 from utils import plot_accuracy_curve, plot_loss_curve, plot_lr_curve
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--resume', default='', help='path to latest checkpoint')
 parser.add_argument('--export', default='model.pth', help='path to save checkpoint')
@@ -121,7 +122,7 @@ def train():
 
 def one_hot_encode(target):
     num_classes = 10  # replace with the number of classes in your problem
-    return torch.nn.functional.one_hot(torch.tensor(target), num_classes=num_classes)
+    return torch.nn.functional.one_hot(torch.tensor(target), num_classes=num_classes).to(torch.float)
 
 
 if __name__ == '__main__':
@@ -154,7 +155,7 @@ if __name__ == '__main__':
     # model
     model = CIFAR(num_classes=10).to(device)
     # loss function
-    criterion = nn.MultiLabelSoftMarginLoss()
+    criterion = nn.CrossEntropyLoss()
     # optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr,weight_decay=args.weight_decay)
     train()
