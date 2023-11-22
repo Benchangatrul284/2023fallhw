@@ -1,9 +1,10 @@
 import argparse
 import os
-
+# import your model here
 from model import CIFAR
+from resnet import resnet
 import math
-import matplotlib.pyplot as plt
+
 import torch
 import torch.nn as nn
 import torchvision
@@ -11,14 +12,14 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
 
-from utils import plot_accuracy_curve, plot_loss_curve, plot_lr_curve
+from utils import plot_accuracy_curve, plot_loss_curve, plot_lr_curve, plot_class_accuracy
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--resume', default='', help='path to latest checkpoint')
 parser.add_argument('--export', default='model.pth', help='path to save checkpoint')
 parser.add_argument('--epoch', default=50, help='number of epochs to train')
-parser.add_argument('--batch_size', default=1024, help='batch size')
+parser.add_argument('--batch_size', default=4096, help='batch size')
 parser.add_argument('--lr', default=1e-3, help='learning rate')
 parser.add_argument('--weight_decay', default=1e-4, help='weight decay')
 args = parser.parse_args()
@@ -50,12 +51,12 @@ def train():
         else:
             print("===> no models found at '{}'".format(args.resume))
 
-    model.train()
     for epoch in range(start_epoch,args.epoch + 1):
         adjust_learning_rate(epoch)
         result = {'train_loss': [], 'valid_loss': [], 'lrs': [], 'accuracy': []}
         print('Epoch: {}'.format(epoch))
         print('learning rate: {:.6f}'.format(optimizer.param_groups[0]['lr']))
+        model.train()
         for (img,label) in tqdm(train_dl):
             img = img.to(device)
             label = label.to(device)
@@ -80,12 +81,30 @@ def train():
             valid_loss = valid_loss / len(valid_dl) # average loss per batch
             # compute test accuracy
             correct = 0
+            class_correct = list(0. for i in range(num_classes))
+            class_total = list(0. for i in range(num_classes))
+
             for (img,label) in tqdm(test_dl):
                 img = img.to(device)
                 label = label.to(device)
                 output = model(img)
                 pred = output.argmax(dim=1, keepdim=True) #returns the index of the maximum value
                 correct += pred.eq(label.view_as(pred)).sum().item()
+                
+                _, predicted = torch.max(output, 1)
+                c = (predicted == label).squeeze()
+                for i in range(len(label)):
+                    label_i = label[i]
+                    class_correct[label_i] += c[i].item()
+                    class_total[label_i] += 1
+
+            for i in range(num_classes):
+                print('Accuracy of %5s : %2d %%' % (classes[i], 100 * class_correct[i] / class_total[i]))
+            class_accuracies = [100 * class_correct[i] / class_total[i] for i in range(num_classes)]
+
+            plot_class_accuracy(class_accuracies,classes,epoch)
+                
+           
                 
                 
         accuracy = correct/len(test_data)
@@ -115,42 +134,55 @@ def train():
         plot_accuracy_curve(history)
         plot_lr_curve(history)
 
-def one_hot_encode(target):
-    num_classes = 10  # replace with the number of classes in your problem
-    return torch.nn.functional.one_hot(torch.tensor(target), num_classes=num_classes).to(torch.float)
-
 
 if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    transform = transforms.Compose([    
+    trans1 = transforms.Compose([    
                                 transforms.Resize((32,32)),
                                 transforms.ToTensor(),
                             ])
+    trans2 = transforms.Compose([
+                                transforms.Resize((32,32)),
+                                transforms.RandomHorizontalFlip(),
+                                transforms.ToTensor(),
+                            ])
     
-    train_data = torchvision.datasets.CIFAR10(
+    train_data1 = torchvision.datasets.CIFAR10(
         root='./cifar10',
         train=True,
-        transform=transform,
+        transform=trans1,
         download=True,
-        target_transform=one_hot_encode
     )
+
+    train_data2 = torchvision.datasets.CIFAR10(
+        root='./cifar10',
+        train=True,
+        transform=trans2,
+        download=True,
+    )
+
     test_data = torchvision.datasets.CIFAR10(
         root='./cifar10',
         train=False,
-        transform=transform,
+        transform=trans1,
         download=True
     )
     # split the training and validation dataset
-    train_ds, valid_ds = torch.utils.data.random_split(train_data, [40000, 10000])
+    train_data = torch.utils.data.ConcatDataset([train_data1,train_data2])
+
+    train_ds, valid_ds = torch.utils.data.random_split(train_data, [90000, 10000])
     # dataloader
     train_dl = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True,num_workers=4)
     valid_dl = DataLoader(valid_ds, batch_size=args.batch_size, shuffle=True,num_workers=4)
     test_dl = DataLoader(test_data, batch_size=args.batch_size, shuffle=True,num_workers=4)
     # model
-    model = CIFAR(num_classes=10).to(device)
+    # model = CIFAR(num_classes=10).to(device)
+    model = resnet(num_classes=10).to(device)
     # loss function
     criterion = nn.CrossEntropyLoss()
     # optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr,weight_decay=args.weight_decay)
+    num_classes = 10
+    classes = ['airplane', 'automobile', 'bird', 'cat', 'deer','dog', 'frog', 'horse', 'ship', 'truck']
     train()
     

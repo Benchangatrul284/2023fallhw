@@ -29,3 +29,12 @@ def plot_lr_curve(history):
     plt.ylabel('lr')
     plt.title('lr vs. No. of epochs');
     plt.savefig('lr_curve.png')
+
+def plot_class_accuracy(class_accuracies,classes,epoch):
+    plt.cla()
+    plt.bar(classes, class_accuracies)
+    plt.xlabel('Class')
+    plt.ylabel('Accuracy')
+    plt.title('Accuracy of each class at epoch {}'.format(epoch))
+    plt.tight_layout()
+    plt.savefig('class_accuracy.png')
