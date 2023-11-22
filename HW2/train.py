@@ -13,13 +13,13 @@ from torchvision import transforms
 from tqdm import tqdm
 
 from utils import plot_accuracy_curve, plot_loss_curve, plot_lr_curve, plot_class_accuracy
-
+from torch.cuda.amp import GradScaler, autocast
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--resume', default='', help='path to latest checkpoint')
 parser.add_argument('--export', default='model.pth', help='path to save checkpoint')
 parser.add_argument('--epoch', default=50, help='number of epochs to train')
-parser.add_argument('--batch_size', default=4096, help='batch size')
+parser.add_argument('--batch_size', default=1024, help='batch size')
 parser.add_argument('--lr', default=1e-3, help='learning rate')
 parser.add_argument('--weight_decay', default=1e-4, help='weight decay')
 args = parser.parse_args()
@@ -38,6 +38,8 @@ def train():
     train_loss = 0
     best_accuracy = 0
     start_epoch = 1
+    scaler = GradScaler()
+
     #loading pretrained models
     if args.resume:
         if os.path.isfile(args.resume):
@@ -61,10 +63,15 @@ def train():
             img = img.to(device)
             label = label.to(device)
             optimizer.zero_grad()
-            output = model(img)
-            loss = criterion(output, label)
-            loss.backward()
-            optimizer.step()
+            with autocast():
+                output = model(img)
+                loss = criterion(output, label)
+
+            # scale the loss and backward pass
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+
             train_loss += loss.item()
         train_loss = train_loss / len(train_dl) # average loss per batch
         
@@ -170,14 +177,14 @@ if __name__ == '__main__':
     # split the training and validation dataset
     train_data = torch.utils.data.ConcatDataset([train_data1,train_data2])
 
-    train_ds, valid_ds = torch.utils.data.random_split(train_data, [90000, 10000])
+    train_ds, valid_ds = torch.utils.data.random_split(train_data1, [40000, 10000])
     # dataloader
     train_dl = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True,num_workers=4)
     valid_dl = DataLoader(valid_ds, batch_size=args.batch_size, shuffle=True,num_workers=4)
     test_dl = DataLoader(test_data, batch_size=args.batch_size, shuffle=True,num_workers=4)
     # model
-    # model = CIFAR(num_classes=10).to(device)
-    model = resnet(num_classes=10).to(device)
+    model = CIFAR(num_classes=10).to(device)
+    # model = resnet(num_classes=10).to(device)
     # loss function
     criterion = nn.CrossEntropyLoss()
     # optimizer

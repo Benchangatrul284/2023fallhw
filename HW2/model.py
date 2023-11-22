@@ -9,63 +9,79 @@ class CIFAR(nn.Module):
     def __init__(self, num_classes: int):
         super(CIFAR, self).__init__()
         self.num_classes = num_classes
-        self.activation = nn.Softmax(dim = 1)
-
         self.conv1 = nn.Sequential(
-            nn.Conv2d(3, 64, 5, 1, 2),
-            nn.BatchNorm2d(64),
-            nn.ReLU(True),
-        )
-        self.conv2 = nn.Sequential(
-            nn.Conv2d(64,256, 5, 1, 2),
-            nn.Dropout(p = 0.5),
-            nn.BatchNorm2d(256),
-            nn.ReLU(True),
-        )
-        self.conv3 = nn.Sequential(
-            nn.Conv2d(256,64, 5, 1, 2),
-            nn.Dropout(p = 0.5),
-            nn.BatchNorm2d(64),
-            nn.ReLU(True),
-        )
-        self.conv4 = nn.Sequential(
-            nn.Conv2d(64,16, 5, 1, 2),
-            nn.Dropout(p = 0.5),
-            nn.BatchNorm2d(16),
-            nn.ReLU(True),
-            nn.MaxPool2d(kernel_size=2)
-        )
-        self.conv5 = nn.Sequential(
-            nn.Conv2d(16,8, 5, 1, 2),
-            nn.Dropout(p = 0.5),
+            nn.Conv2d(3, 8, 5, 1, 2),
             nn.BatchNorm2d(8),
             nn.ReLU(True),
-            nn.MaxPool2d(kernel_size=2)
-        )
+            nn.Conv2d(8, 64, 5, 1, 2),
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+            nn.Conv2d(64,256, 5, 1, 2),
+            nn.BatchNorm2d(256),
+            nn.ReLU(True),
+            nn.MaxPool2d(2),
+            nn.Conv2d(256,256, 5, 1, 2),
+            nn.BatchNorm2d(256),
+            nn.ReLU(True),
+            nn.Conv2d(256,64, 5, 1, 2),
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+            nn.Conv2d(64,8, 5, 1, 2),
+            nn.BatchNorm2d(8),
+            nn.ReLU(True),
+            nn.MaxPool2d(2),
+       )
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(8, 8, 5, 1, 2),
+            nn.BatchNorm2d(8),
+            nn.ReLU(True),
+            nn.Conv2d(8, 64, 5, 1, 2),
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+            nn.Conv2d(64,256, 5, 1, 2),
+            nn.BatchNorm2d(256),
+            nn.ReLU(True),
+            nn.MaxPool2d(2),
+            nn.Conv2d(256,256, 5, 1, 2),
+            nn.BatchNorm2d(256),
+            nn.ReLU(True),
+            nn.Conv2d(256,64, 5, 1, 2),
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+            nn.Conv2d(64,8, 5, 1, 2),
+            nn.BatchNorm2d(8),
+            nn.ReLU(True),
+       )
         self.linear1 = nn.Sequential(
-            nn.Linear(512, 256),
+            nn.Linear(128, 64),
             nn.Dropout(p = 0.5),
             nn.ReLU(True)
         )
         self.linear2 = nn.Sequential(
-            nn.Linear(256, 64),
+            nn.Linear(64, 32),
             nn.Dropout(p = 0.5),
             nn.ReLU(True)
         )
-        self.out = nn.Linear(64, self.num_classes)
+        self.out = nn.Linear(32, self.num_classes)
 
     def forward(self, x):
         x = self.conv1(x)
         x = self.conv2(x)
-        x = self.conv3(x)
-        x = self.conv4(x)
-        x = self.conv5(x)
         x = x.view(x.size(0), -1)
         x = self.linear1(x)
         x = self.linear2(x)
         output = self.out(x)
-        return self.activation(output)
+        return output
     
+    def reset_parameters():
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight.data, mode='fan_in')
+                if m.bias is not None:
+                    m.bias.data.zero_()
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight.data, 0, 0.01)
+                m.bias.data.zero_()
 
 if __name__ == '__main__':
     # calulate flops and params
