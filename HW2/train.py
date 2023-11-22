@@ -90,7 +90,7 @@ def train():
                 output = model(img)
                 pred = output.argmax(dim=1, keepdim=True) #returns the index of the maximum value
                 correct += pred.eq(label.view_as(pred)).sum().item()
-                
+
                 _, predicted = torch.max(output, 1)
                 c = (predicted == label).squeeze()
                 for i in range(len(label)):
@@ -183,6 +183,6 @@ if __name__ == '__main__':
     # optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr,weight_decay=args.weight_decay)
     num_classes = 10
-    classes = ['airplane', 'automobile', 'bird', 'cat', 'deer','dog', 'frog', 'horse', 'ship', 'truck']
+    classes = ['plane', 'car', 'bird', 'cat', 'deer','dog', 'frog', 'horse', 'ship', 'truck']
     train()
     
