@@ -1,10 +1,7 @@
 import argparse
 import os
 # import your model here
-from model import CIFAR
-from resnet import resnet
-import math
-
+from model import CIFAR_part1, CIFAR_part2, CIFAR_part3, CIFAR_part4
 import torch
 import torch.nn as nn
 import torchvision
@@ -19,26 +16,25 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--resume', default='', help='path to latest checkpoint')
 parser.add_argument('--export', default='model.pth', help='path to save checkpoint')
 parser.add_argument('--epoch', default=50, help='number of epochs to train')
-parser.add_argument('--batch_size', default=1024, help='batch size')
-parser.add_argument('--lr', default=1e-3, help='learning rate')
+parser.add_argument('--batch_size', default=128, help='batch size')
+parser.add_argument('--lr', default=5e-4, help='learning rate')
 parser.add_argument('--weight_decay', default=1e-4, help='weight decay')
 args = parser.parse_args()
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-def adjust_learning_rate(epoch, T_max=args.epoch, eta_min=args.lr*0.5, lr_init=args.lr):
-    lr = eta_min + (lr_init - eta_min) * (1 + math.cos(math.pi * epoch / T_max)) / 2
-    if epoch >= T_max:
-        lr = eta_min
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
+# def adjust_learning_rate(epoch, T_max=args.epoch, eta_min=args.lr*0.1, lr_init=args.lr):
+#     lr = eta_min + (lr_init - eta_min) * (1 + math.cos(math.pi * epoch / T_max)) / 2
+#     if epoch >= T_max:
+#         lr = eta_min
+#     for param_group in optimizer.param_groups:
+#         param_group['lr'] = lr
 
 def train():
     history = []
-    train_loss = 0
     best_accuracy = 0
     start_epoch = 1
-    scaler = GradScaler()
+    # scaler = GradScaler()
 
     #loading pretrained models
     if args.resume:
@@ -54,24 +50,37 @@ def train():
             print("===> no models found at '{}'".format(args.resume))
 
     for epoch in range(start_epoch,args.epoch + 1):
-        adjust_learning_rate(epoch)
+        # adjust_learning_rate(epoch)
+        
         result = {'train_loss': [], 'valid_loss': [], 'lrs': [], 'accuracy': []}
         print('Epoch: {}'.format(epoch))
         print('learning rate: {:.6f}'.format(optimizer.param_groups[0]['lr']))
         model.train()
+        # train_loss = 0
+        # for (img,label) in tqdm(train_dl):
+        #     img = img.to(device)
+        #     label = label.to(device)
+        #     optimizer.zero_grad()
+        #     with autocast():
+        #         output = model(img)
+        #         loss = criterion(output, label)
+
+        #     # scale the loss and backward pass
+        #     scaler.scale(loss).backward()
+        #     scaler.step(optimizer)
+        #     scaler.update()
+
+        # train_loss += loss.item()
+        train_loss = 0
         for (img,label) in tqdm(train_dl):
             img = img.to(device)
             label = label.to(device)
             optimizer.zero_grad()
-            with autocast():
-                output = model(img)
-                loss = criterion(output, label)
-
-            # scale the loss and backward pass
-            scaler.scale(loss).backward()
-            scaler.step(optimizer)
-            scaler.update()
-
+            output = model(img)
+            loss = criterion(output, label)
+            loss.backward()
+            optimizer.step()
+            # scheduler.step()
             train_loss += loss.item()
         train_loss = train_loss / len(train_dl) # average loss per batch
         
@@ -145,13 +154,15 @@ def train():
 if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     trans1 = transforms.Compose([    
-                                transforms.Resize((32,32)),
                                 transforms.ToTensor(),
+                                transforms.Normalize((0.485,0.456,0.456),(0.229,0.224,0.225))
                             ])
+    
     trans2 = transforms.Compose([
                                 transforms.Resize((32,32)),
                                 transforms.RandomHorizontalFlip(),
                                 transforms.ToTensor(),
+                                transforms.Normalize((0.485,0.456,0.456),(0.229,0.224,0.225)),
                             ])
     
     train_data1 = torchvision.datasets.CIFAR10(
@@ -177,18 +188,22 @@ if __name__ == '__main__':
     # split the training and validation dataset
     train_data = torch.utils.data.ConcatDataset([train_data1,train_data2])
 
-    train_ds, valid_ds = torch.utils.data.random_split(train_data1, [40000, 10000])
+    train_ds, valid_ds = torch.utils.data.random_split(train_data, [96000, 4000])
     # dataloader
     train_dl = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True,num_workers=4)
     valid_dl = DataLoader(valid_ds, batch_size=args.batch_size, shuffle=True,num_workers=4)
     test_dl = DataLoader(test_data, batch_size=args.batch_size, shuffle=True,num_workers=4)
     # model
-    model = CIFAR(num_classes=10).to(device)
+    # model = residual(num_classes=10).to(device)
     # model = resnet(num_classes=10).to(device)
+    # model = residual(num_classes=10).to(device)
+    model = CIFAR_part4(num_classes=10).to(device)
     # loss function
     criterion = nn.CrossEntropyLoss()
     # optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr,weight_decay=args.weight_decay)
+    # scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=1, eta_min=0, last_epoch=-1)
+    # scheduler = CosineAnnealingLR(optimizer, T_max=args.epoch * len(train_dl), eta_min=1e-4)
     num_classes = 10
     classes = ['plane', 'car', 'bird', 'cat', 'deer','dog', 'frog', 'horse', 'ship', 'truck']
     train()
