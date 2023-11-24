@@ -30,16 +30,15 @@ class Linear(Layer):
         self.output = np.dot(self.input, self.weights) + self.bias
         return self.output
 
-    # computes dE/dW, dE/dB for a given output_error=dE/dY. Returns input_error=dE/dX.
+    # computes local gradient for a given upstream gradient. Returns downstream gradient.
     def backward_propagation(self, output_error, learning_rate):
-        input_error = np.dot(output_error, self.weights.T)
+        downstream = np.dot(output_error, self.weights.T)
         weights_error = np.dot(self.input.T, output_error)
-        # dBias = output_error
 
         # update parameters
         self.weights -= learning_rate * weights_error
         self.bias -= learning_rate * output_error
-        return input_error
+        return downstream
     
 class ActivationLayer(Layer):
     def __init__(self, activation, activation_prime):
@@ -52,8 +51,7 @@ class ActivationLayer(Layer):
         self.output = self.activation(self.input)
         return self.output
 
-    # Returns input_error=dE/dX for a given output_error=dE/dY.
-    # learning_rate is not used because there is no "learnable" parameters.
+
     def backward_propagation(self, output_error, learning_rate):
         return self.activation_prime(self.input) * output_error
     
