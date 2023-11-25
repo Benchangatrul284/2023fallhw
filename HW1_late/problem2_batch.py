@@ -43,7 +43,7 @@ if __name__ == '__main__':
 
     # train
     net.use(logistic, logistic_prime)
-    errs = net.fit(X_train, Y_train, epochs=1000, learning_rate=10,batch_size = 1,errs = errs)
+    errs = net.fit(X_train, Y_train, epochs=1000, learning_rate=0.75,batch_size = 1,errs = errs)
 
     # plot the prediction
     plt.scatter(X_test[:,0],X_test[:,1],c=Y_test)
