@@ -143,11 +143,11 @@ if __name__ == '__main__':
     Y_test = test_data[:,1].reshape(-1, 1)
     # breakpoint()
     # create network
-    net = Network([Linear(1,2),Linear(2,1)])
+    net = Network([Linear(1,1)])
 
     # train
     net.use(mse, mse_prime)
-    net.fit(X_train, Y_train, epochs=1000, learning_rate=1e-5)
+    net.fit(X_train, Y_train, epochs=1000, learning_rate=1e-4)
 
     # test
     out = net.predict(X_test)

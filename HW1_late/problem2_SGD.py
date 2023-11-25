@@ -107,20 +107,19 @@ class Network:
                 for layer in self.layers:
                     x = layer.forward_propagation(x)
                 y_pred = x
-                err = self.loss(y, y_pred)
+                err += self.loss(y, y_pred)
                 error = self.loss_prime(y, y_pred)
                 for layer in reversed(self.layers):
                     error = layer.backward_propagation(error, learning_rate)
+            err /= samples
             print('epoch %d/%d   error=%f' % (i+1, epochs, err))
-            # errs.append(err)
+            errs.append(err)
 
 def logistic(y_true, y_pred):
-    epsilon = 1e-7
-    return np.mean(-y_true * np.log(y_pred+epsilon) + (1 - y_true) * np.log(1 - y_pred+epsilon))
+    return np.mean(-y_true * np.log(y_pred) - (1 - y_true) * np.log(1 - y_pred))
 
 def logistic_prime(y_true, y_pred):
-    epsilon = 1e-7
-    return -y_true/(y_pred + epsilon) + (1-y_true)/(1-y_pred + epsilon)
+    return -y_true/(y_pred) + (1-y_true)/(1-y_pred)
 
 def sigmoid(x):
     return 1/(1+np.exp(-x))
@@ -136,8 +135,20 @@ def standardize(X):
     std = np.std(X,axis=0)
     return (X-mean)/std
 
+def plot_loss_curve():
+    plt.cla()
+    window_size = 100
+    weights = np.repeat(1.0, window_size) / window_size
+    moving_avg_errs = np.convolve(errs, weights, 'valid')
+    plt.plot(moving_avg_errs, '-bx',label='train')
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    plt.title('Loss vs. No. of epochs')
+    plt.legend()
+    plt.savefig('loss_curve.png')
 
 if __name__ == '__main__':
+    errs = []
     # read datapoints from csv file
     hw_scores = pd.read_csv(os.path.join('hw1_dataset','Problem 2','Averaged homework scores.csv'))
     final_scores = pd.read_csv(os.path.join('hw1_dataset','Problem 2','Final exam scores.csv'))
@@ -158,7 +169,7 @@ if __name__ == '__main__':
 
     # train
     net.use(logistic, logistic_prime)
-    net.fit(X_train, Y_train, epochs=1000, learning_rate=0.75)
+    net.fit(X_train, Y_train, epochs=1000, learning_rate=0.01)
 
     # plot the prediction
     plt.scatter(X_test[:,0],X_test[:,1],c=Y_test)
@@ -177,5 +188,6 @@ if __name__ == '__main__':
     plt.contour(np.linspace(-2,2,100),np.linspace(-2,2,100),y,levels=[0.5])
     plt.xlabel('Homework score')
     plt.ylabel('Final score')
-    plt.legend()
+    # plt.legend()
     plt.savefig('problem2.png')
+    plot_loss_curve()
